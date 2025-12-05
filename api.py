@@ -6,8 +6,8 @@ from textblob import TextBlob  # <-- 1. Import TextBlob
 import textstat              # <-- 2. Import textstat
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})  # This allows your frontend to talk to your backend
-
+app.config['CORS_HEADERS'] = 'Content-Type'
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 # --- Load your trained models ---
 try:
     model = joblib.load('logreg_model.pkl')
@@ -101,3 +101,4 @@ def health_check():
 if __name__ == '__main__':
 
     app.run(debug=True, port=5000)
+
