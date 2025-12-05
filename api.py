@@ -15,6 +15,12 @@ CORS(app, resources={
         "allow_headers": ["Content-Type", "Authorization"]
     }
 })
+@app.after_request
+def apply_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
 
 # Load models
 try:
@@ -96,5 +102,6 @@ def health_check():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
 
