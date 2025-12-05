@@ -2,13 +2,21 @@ import time
 import joblib
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from textblob import TextBlob  # <-- 1. Import TextBlob
-import textstat              # <-- 2. Import textstat
+from textblob import TextBlob
+import textstat
 
 app = Flask(__name__)
-app.config['CORS_HEADERS'] = 'Content-Type'
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-# --- Load your trained models ---
+
+# FIX CORS PROPERLY - Allow all origins
+CORS(app, resources={
+    r"/api/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
+
+# Load models
 try:
     model = joblib.load('logreg_model.pkl')
     vectorizer = joblib.load('tfidf_vectorizer.pkl')
@@ -18,42 +26,38 @@ except Exception as e:
     model = None
     vectorizer = None
 
-# --- Home route ---
 @app.route('/api/')
 def home():
     return 'Fake News Detector API is running!'
 
-# --- Prediction route ---
-@app.route('/api/analyze', methods=['POST'])
+@app.route('/api/analyze', methods=['POST', 'OPTIONS'])
 def predict_news():
+    # Handle preflight
+    if request.method == 'OPTIONS':
+        return '', 204
+        
     if not model or not vectorizer:
-        return jsonify({"error": "Models not loaded, check server logs"}), 500
+        return jsonify({"error": "Models not loaded"}), 500
 
     data = request.get_json(force=True)
-    text = data.get('text', '')  # Get the text from the JS request
+    text = data.get('text', '')
 
     if not text.strip():
         return jsonify({"error": "No text provided"}), 400
 
     try:
-        # --- 1. Your AI Model Prediction ---
+        # Prediction
         x_new = vectorizer.transform([text])
         probs = model.predict_proba(x_new)[0]
         prediction = probs.argmax()
-
-        # Map 0/1 to labels (adjust if your model is different)
-        # (0 = real, 1 = fake)
         label = "FAKE" if prediction == 1 else "REAL"
         confidence = float(max(probs))
 
-        # --- 2. NEW: Perform Analysis ---
-        
-        # Word Count
+        # Analysis
         word_count = len(text.split())
-
-        # Sentiment
         blob = TextBlob(text)
         sentiment_polarity = blob.sentiment.polarity
+        
         if sentiment_polarity > 0.02:
             sentiment = "Positive"
         elif sentiment_polarity < -0.02:
@@ -61,26 +65,20 @@ def predict_news():
         else:
             sentiment = "Neutral"
 
-        # Readability Score
         readability_score = textstat.flesch_reading_ease(text)
-        
-        # Keywords (This is a placeholder. Real keyword extraction is complex)
-        keywords = [] 
+        keywords = []
 
-        # --- 3. Format the Result ---
         result = {
             "prediction": label,
-            "confidence": confidence,  # <-- FIX 1: Send the raw number, not a string
+            "confidence": confidence,
             "probability": {
                 "fake": float(probs[1]),
                 "real": float(probs[0])
             },
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            
-            # <-- FIX 2: Added the analysis object your frontend wants
             "analysis": {
                 "sentiment": sentiment,
-                "keywords": keywords, 
+                "keywords": keywords,
                 "readability_score": readability_score,
                 "word_count": word_count
             }
@@ -90,15 +88,13 @@ def predict_news():
 
     except Exception as e:
         print(f"--- PREDICTION ERROR: {e} ---")
-        return jsonify({"error": f"An error occurred during prediction: {e}"}), 500
+        return jsonify({"error": f"Error: {e}"}), 500
 
-# --- Health check route ---
 @app.route('/api/health')
 def health_check():
     return {"status": "ok"}, 200
 
-# --- Run the app ---
 if __name__ == '__main__':
-
     app.run(debug=True, port=5000)
+
 
