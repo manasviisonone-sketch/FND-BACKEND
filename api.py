@@ -6,7 +6,7 @@ from textblob import TextBlob  # <-- 1. Import TextBlob
 import textstat              # <-- 2. Import textstat
 
 app = Flask(__name__)
-CORS(app)  # This allows your frontend to talk to your backend
+CORS(app, resources={r"/api/*": {"origins": "*"}})  # This allows your frontend to talk to your backend
 
 # --- Load your trained models ---
 try:
@@ -54,9 +54,9 @@ def predict_news():
         # Sentiment
         blob = TextBlob(text)
         sentiment_polarity = blob.sentiment.polarity
-        if sentiment_polarity > 0.1:
+        if sentiment_polarity > 0.02:
             sentiment = "Positive"
-        elif sentiment_polarity < -0.1:
+        elif sentiment_polarity < -0.02:
             sentiment = "Negative"
         else:
             sentiment = "Neutral"
@@ -99,4 +99,5 @@ def health_check():
 
 # --- Run the app ---
 if __name__ == '__main__':
+
     app.run(debug=True, port=5000)
